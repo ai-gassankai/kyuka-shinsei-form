@@ -1,2 +1,2 @@
-# Time-Off-Request-Form
+# kyuka-shinsei-form
 医療法人社団 月山会 職員向け休暇申請システム（院内イントラネット連携用）
