@@ -784,10 +784,26 @@ function doGet(e) {
             updateGasStatusBadge();
 
             resetCurrentSubmissionAnswers();
+            fetchStaffFromSpreadsheet();
         };
 
         function saveStateToStorage() {
             localStorage.setItem("gassankai_vacation_form_state_v2", JSON.stringify(appState));
+        }
+
+        function fetchStaffFromSpreadsheet() {
+            if (!appState.gasURL || appState.gasURL.trim() === "") return;
+
+            fetch(appState.gasURL)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.result === "success" && data.staff && Object.keys(data.staff).length > 0) {
+                        appState.staff = data.staff;
+                        saveStateToStorage();
+                        syncStaffInputsFromState();
+                    }
+                })
+                .catch(err => console.log("名簿自動同期スキップ:", err));
         }
 
         function resetCurrentSubmissionAnswers() {
