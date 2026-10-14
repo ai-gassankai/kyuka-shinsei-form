@@ -343,13 +343,13 @@
                 },
                 {
                     id: "field_paid_leave",
-                    label: "有給を使用するかどうかの選択をお願いします。（有給は1時間単位での使用となるため、45分などは1時間になります）",
+                    label: "有休を使用するかどうかの選択をお願いします。（有休は1時間単位での使用となるため、45分などは1時間になります）",
                     type: "radio",
                     required: true,
                     options: [
                         "不使用（欠勤）",
-                        "有給使用（時間休）",
-                        "有給使用（1日分）...※はじめは特別休暇にあてます※",
+                        "有休使用（時間休）",
+                        "有休使用（1日分）...※はじめは特別休暇にあてます※",
                         "冠婚葬祭等（特休）",
                         "8月分の追加の休み",
                         "その他:"
@@ -379,6 +379,8 @@
                     if (!appState.fields || !appState.staff || !appState.submissions) {
                         appState = DEFAULT_STATE;
                     }
+                    // 項目の文言は画面から編集できないため、常にコード側の最新定義を使う
+                    appState.fields = DEFAULT_STATE.fields;
                     if (!appState.adminPIN) {
                         appState.adminPIN = "1234";
                     }
