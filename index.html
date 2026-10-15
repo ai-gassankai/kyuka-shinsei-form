@@ -349,6 +349,7 @@
                     options: [
                         "不使用（欠勤）",
                         "有休使用（時間休）",
+                        "有休使用（半休）",
                         "有休使用（1日分）...※はじめは特別休暇にあてます※",
                         "冠婚葬祭等（特休）",
                         "8月分の追加の休み",
@@ -642,6 +643,10 @@
                     inputElement = document.createElement("input");
                     inputElement.type = "date";
                     inputElement.id = field.id;
+                    // 申請できるのは今日〜2ヶ月先の月末まで（勤怠システムの休暇申請と同じ）
+                    const range = leaveDateRange();
+                    inputElement.min = range.min;
+                    inputElement.max = range.max;
                     inputElement.className = "w-full md:w-64 pb-2 border-b border-slate-300 focus:border-blue-600 focus:outline-none text-sm md:text-base bg-transparent pt-1 transition duration-150";
                     inputElement.value = currentSubmission.answers[field.id] || "";
                     inputElement.onchange = (e) => { 
@@ -649,6 +654,10 @@
                         clearFieldWarning(field.id);
                     };
                     card.appendChild(inputElement);
+                    const rangeNote = document.createElement("p");
+                    rangeNote.className = "text-xs text-slate-500";
+                    rangeNote.textContent = `選べるのは今日から ${range.max.replace(/-/g, "/")} まで（2ヶ月先の月末まで）です。`;
+                    card.appendChild(rangeNote);
 
                 } else if (field.type === "time") {
                     inputElement = document.createElement("input");
@@ -866,6 +875,16 @@
             };
         }
 
+        // 休暇の申請期間：今日〜2ヶ月先の月末（YYYY-MM-DD）
+        function leaveDateRange() {
+            const pad = n => String(n).padStart(2, "0");
+            const now = new Date();
+            const min = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+            const last = new Date(now.getFullYear(), now.getMonth() + 3, 0);
+            const max = `${last.getFullYear()}-${pad(last.getMonth() + 1)}-${pad(last.getDate())}`;
+            return { min, max };
+        }
+
         function validateAndGoToReview() {
             let errorCount = 0;
             let firstErrorElement = null;
@@ -880,6 +899,27 @@
                 }
                 if (errorAlert) {
                     errorAlert.classList.add("hidden");
+                }
+
+                if (errorAlert) {
+                    errorAlert.querySelector("span").textContent = "この質問は必須です";
+                }
+
+                // 日付が申請期間外（手入力やページを開いたままの日付またぎ）
+                if (field.type === "date" && val) {
+                    const range = leaveDateRange();
+                    if (val < range.min || val > range.max) {
+                        errorCount++;
+                        if (card) {
+                            card.classList.add("border-rose-500", "bg-rose-50/10");
+                            if (!firstErrorElement) firstErrorElement = card;
+                        }
+                        if (errorAlert) {
+                            errorAlert.querySelector("span").textContent = `今日から ${range.max.replace(/-/g, "/")} までの日付を選んでください`;
+                            errorAlert.classList.remove("hidden");
+                        }
+                        return;
+                    }
                 }
 
                 if (field.required) {
@@ -906,7 +946,7 @@
             });
 
             if (errorCount > 0) {
-                showNotification("未入力の必須項目があります。画面を確認してください。", "error");
+                showNotification("未入力の必須項目か、選べない日付があります。画面を確認してください。", "error");
                 if (firstErrorElement) {
                     firstErrorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
