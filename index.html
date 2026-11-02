@@ -122,11 +122,11 @@
                     </button>
 
                     <!-- Sendai Branch Card -->
-                    <button onclick="selectClinic('仙台院')" class="group relative bg-white border-2 border-slate-150 hover:border-blue-500 rounded-2xl p-6 text-center shadow-sm hover:shadow-md transition-all duration-200 flex flex-col items-center justify-center space-y-3">
+                    <button onclick="selectClinic('仙台西口院')" class="group relative bg-white border-2 border-slate-150 hover:border-blue-500 rounded-2xl p-6 text-center shadow-sm hover:shadow-md transition-all duration-200 flex flex-col items-center justify-center space-y-3">
                         <div class="w-12 h-12 bg-sky-50 text-sky-600 rounded-full flex items-center justify-center group-hover:scale-110 transition duration-300">
                             <i class="fa-solid fa-city text-xl"></i>
                         </div>
-                        <span class="font-bold text-lg text-slate-800">仙台院</span>
+                        <span class="font-bold text-lg text-slate-800">仙台西口院</span>
                         <p class="text-xs text-slate-400">Sendai Clinic</p>
                         <div class="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition duration-200 text-blue-500">
                             <i class="fa-solid fa-circle-arrow-right text-lg"></i>
@@ -299,7 +299,7 @@
     <script>
         // Default state configuration for Vacation Request Form
         const DEFAULT_STATE = {
-            clinics: ["山形院", "所沢院", "仙台院"],
+            clinics: ["山形院", "所沢院", "仙台西口院"],
             adminPIN: "1234", 
             gasURL: "https://script.google.com/macros/s/AKfycbzIkI30Lz0nZXbkZqt5C7pDR-98YYIaUcNbD7FoFpWTG-cjovNR35eaWRdYVm3iozBs/exec",
             staff: {
@@ -313,7 +313,7 @@
                     "所沢 二郎 (テストネーム)",
                     "所沢 三郎 (テストネーム)"
                 ],
-                "仙台院": [
+                "仙台西口院": [
                     "仙台 太郎 (テストネーム)",
                     "仙台 次郎 (テストネーム)",
                     "仙台 三郎 (テストネーム)"
@@ -349,12 +349,27 @@
                     options: [
                         "不使用（欠勤）",
                         "有休使用（時間休）",
-                        "有休使用（半休）",
                         "有休使用（1日分）...※はじめは特別休暇にあてます※",
                         "冠婚葬祭等（特休）",
-                        "8月分の追加の休み",
+                        "研修参加（出勤扱い。有休は使いません）",
                         "その他:"
                     ]
+                },
+                {
+                    id: "field_training_content",
+                    label: "【研修参加の場合】研修の内容（研修名・主催・場所など）を記入してください。",
+                    type: "textarea",
+                    required: true,
+                    options: [],
+                    showIf: { field: "field_paid_leave", value: "研修参加（出勤扱い。有休は使いません）" }
+                },
+                {
+                    id: "field_training_presentation",
+                    label: "【研修参加の場合】研修での発表はありますか？",
+                    type: "radio",
+                    required: true,
+                    options: ["発表あり", "発表なし"],
+                    showIf: { field: "field_paid_leave", value: "研修参加（出勤扱い。有休は使いません）" }
                 }
             ],
             submissions: []
@@ -594,6 +609,7 @@
                 const card = document.createElement("div");
                 card.id = `card_${field.id}`;
                 card.className = "bg-white rounded-2xl border border-slate-200 shadow-sm p-5 md:p-6 space-y-4 transition-all duration-200";
+                if (!isFieldShown(field)) card.classList.add("hidden");
 
                 const labelWrapper = document.createElement("div");
                 labelWrapper.className = "space-y-1";
@@ -750,6 +766,7 @@
                         r.onchange = (e) => { 
                             currentSubmission.answers[field.id] = e.target.value; 
                             clearFieldWarning(field.id);
+                            updateConditionalFields();
                             
                             const detailInput = document.getElementById(`other_text_${field.id}`);
                             if (detailInput) {
@@ -906,6 +923,18 @@
             };
         }
 
+        // 条件つきの質問（showIf）：指定の選択肢が選ばれているときだけ表示・確認・送信する
+        function isFieldShown(field) {
+            return !field.showIf || currentSubmission.answers[field.showIf.field] === field.showIf.value;
+        }
+        function updateConditionalFields() {
+            appState.fields.forEach(f => {
+                if (!f.showIf) return;
+                const card = document.getElementById(`card_${f.id}`);
+                if (card) card.classList.toggle("hidden", !isFieldShown(f));
+            });
+        }
+
         // 休暇の申請期間：今日〜2ヶ月先の月末（YYYY-MM-DD）
         function leaveDateRange() {
             const pad = n => String(n).padStart(2, "0");
@@ -921,6 +950,7 @@
             let firstErrorElement = null;
 
             appState.fields.forEach(field => {
+                if (!isFieldShown(field)) return;
                 const val = currentSubmission.answers[field.id];
                 const card = document.getElementById(`card_${field.id}`);
                 const errorAlert = document.getElementById(`err_${field.id}`);
@@ -1012,6 +1042,7 @@
             reviewContainer.innerHTML = "";
 
             appState.fields.forEach(field => {
+                if (!isFieldShown(field)) return;
                 const tr = document.createElement("tr");
                 tr.className = "border-b border-slate-150";
 
@@ -1071,7 +1102,7 @@
             const sheetPayloadData = {};
 
             appState.fields.forEach(field => {
-                const rawVal = currentSubmission.answers[field.id];
+                const rawVal = isFieldShown(field) ? currentSubmission.answers[field.id] : "";
                 let finalValStr = "";
 
                 if (field.type === 'checkbox' && Array.isArray(rawVal)) {
