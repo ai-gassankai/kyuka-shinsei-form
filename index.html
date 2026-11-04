@@ -612,6 +612,7 @@
                 '<div class="flex items-center justify-between"><div id="authName" class="font-bold text-slate-900 text-lg"></div>' +
                 '<button type="button" id="authClose" class="text-slate-400 hover:text-slate-600 text-xl leading-none px-2" aria-label="閉じる">×</button></div>' +
                 '<p class="text-sm text-slate-500 text-center">3桁のパスワードを入力してください</p>' +
+                '<p class="text-xs text-slate-400 text-center -mt-2">勤怠システムの打刻と同じパスワードです<br>（イントラサイトのパスワードの末尾3桁）</p>' +
                 '<input type="password" id="authInput" inputmode="numeric" maxlength="3" autocomplete="off" class="w-full text-center text-3xl tracking-[0.5em] py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">' +
                 '<p id="authMsg" class="text-sm text-rose-600 text-center min-h-[1.25rem]"></p>' +
                 '<button type="button" id="authGo" class="w-full py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 disabled:opacity-50">次へ進む</button>' +
@@ -663,9 +664,9 @@
                     } else if (r.status === "nopw") {
                         input.disabled = true;
                         go.disabled = true;
-                        setAuthMsg("パスワードが割り当てられていないため申請できません。管理者の渡邉さんにお問い合わせください。");
+                        setAuthMsg("パスワードが割り当てられていないため申請できません。管理者の渡邉までお問い合わせください（medivery.llc@gmail.com）。");
                     } else {
-                        setAuthMsg("確認できませんでした。時間をおいてもう一度お試しください。改善しない場合は管理者の渡邉さんにお問い合わせください。");
+                        setAuthMsg("確認できませんでした。時間をおいてもう一度お試しください。改善しない場合は管理者の渡邉までお問い合わせください（medivery.llc@gmail.com）。");
                     }
                 })
                 .catch(() => {
@@ -740,7 +741,7 @@
                     inputElement = document.createElement("input");
                     inputElement.type = "date";
                     inputElement.id = field.id;
-                    // 申請できるのは今日〜2ヶ月先の月末まで（勤怠システムの休暇申請と同じ）
+                    // 申請できるのは前月1日〜2ヶ月先の月末まで
                     const range = leaveDateRange();
                     inputElement.min = range.min;
                     inputElement.max = range.max;
@@ -753,7 +754,7 @@
                     card.appendChild(inputElement);
                     const rangeNote = document.createElement("p");
                     rangeNote.className = "text-xs text-slate-500";
-                    rangeNote.textContent = `選べるのは今日から ${range.max.replace(/-/g, "/")} まで（2ヶ月先の月末まで）です。`;
+                    rangeNote.textContent = `選べるのは ${range.min.replace(/-/g, "/")} から ${range.max.replace(/-/g, "/")} まで（前月1日〜2か月先の月末まで）です。`;
                     card.appendChild(rangeNote);
 
                 } else if (field.type === "time") {
@@ -1018,14 +1019,19 @@
             });
         }
 
-        // 休暇の申請期間：今日〜2ヶ月先の月末（YYYY-MM-DD）
-        function leaveDateRange() {
+        // 休暇の申請期間：前月1日〜2ヶ月先の月末（YYYY-MM-DD・日本時間で計算）
+        function leaveDateRange(baseDate) {
             const pad = n => String(n).padStart(2, "0");
-            const now = new Date();
-            const min = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-            const last = new Date(now.getFullYear(), now.getMonth() + 3, 0);
-            const max = `${last.getFullYear()}-${pad(last.getMonth() + 1)}-${pad(last.getDate())}`;
-            return { min, max };
+            const fmt = d => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+            // 日本時間の「今日」の年月日（端末のタイムゾーンに依存しない）
+            const p = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" })
+                .format(baseDate || new Date()).split("-").map(Number);
+            const y = p[0], m = p[1] - 1;  // m: 0始まり
+            // 以降はUTCで日付だけを計算する（ローカル時刻への変換によるズレを避ける）
+            return {
+                min: fmt(new Date(Date.UTC(y, m - 1, 1))),   // 前月1日
+                max: fmt(new Date(Date.UTC(y, m + 3, 0)))    // 2ヶ月先の月末
+            };
         }
 
         function validateAndGoToReview() {
@@ -1060,7 +1066,7 @@
                             if (!firstErrorElement) firstErrorElement = card;
                         }
                         if (errorAlert) {
-                            errorAlert.querySelector("span").textContent = `今日から ${range.max.replace(/-/g, "/")} までの日付を選んでください`;
+                            errorAlert.querySelector("span").textContent = `${range.min.replace(/-/g, "/")}〜${range.max.replace(/-/g, "/")} の範囲で日付を選択してください。`;
                             errorAlert.classList.remove("hidden");
                         }
                         return;
